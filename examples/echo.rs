@@ -1,14 +1,25 @@
 use async_trait::async_trait;
-use wechat_rs_sdk::{Agent, Bot, ChatRequest, ChatResponse, LoginOptions, Result, StartOptions};
+use wechat_rs_sdk::{Agent, Bot, ChatRequest, ChatResponse, LoginOptions, MediaKind, MediaOutKind, MediaOutput, Result, StartOptions};
 
 struct EchoAgent;
 
 #[async_trait]
 impl Agent for EchoAgent {
     async fn chat(&self, request: ChatRequest) -> Result<ChatResponse> {
+        println!("on request: {:#?}", request);
+        let media = request.media.and_then(|m|{
+            let kind = match m.kind {
+                MediaKind::Image => MediaOutKind::Image,
+                MediaKind::Audio => return None,
+                MediaKind::Video => MediaOutKind::Video,
+                MediaKind::File => MediaOutKind::File,
+            };
+            Some(MediaOutput { kind, url: m.file_path, file_name: None })
+        });
+
         Ok(ChatResponse {
             text: Some(format!("你说了: {}", request.text)),
-            media: None,
+            media,
         })
     }
 }
