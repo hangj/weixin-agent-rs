@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use wechat_rs_sdk::{Agent, Bot, ChatRequest, ChatResponse, LoginOptions, MediaKind, MediaOutKind, MediaOutput, Result, StartOptions};
+use wechat_rs_sdk::{Agent, Bot, ChatRequest, ChatResponse, LoginOptions, MediaKind, MediaOutKind, MediaOutput, Result, StartOptions, auth::accounts::list_accounts};
 
 struct EchoAgent;
 
@@ -7,19 +7,15 @@ struct EchoAgent;
 impl Agent for EchoAgent {
     async fn chat(&self, request: ChatRequest) -> Result<ChatResponse> {
         println!("on request: {:#?}", request);
-        let media = request.media.and_then(|m|{
-            let kind = match m.kind {
-                MediaKind::Image => MediaOutKind::Image,
-                MediaKind::Audio => return None,
-                MediaKind::Video => MediaOutKind::Video,
-                MediaKind::File => MediaOutKind::File,
-            };
-            Some(MediaOutput { kind, url: m.file_path, file_name: None })
-        });
+        if let Some(media) = &request.media && media.kind == MediaKind::Image {
+            let path = media.file_path.as_str();
+
+            // todo: search this image
+        }
 
         Ok(ChatResponse {
             text: Some(format!("你说了: {}", request.text)),
-            media,
+            media: None,
         })
     }
 }
@@ -37,5 +33,24 @@ async fn main() -> Result<()> {
         return Ok(());
     }
 
-    Bot::start(EchoAgent, StartOptions::default()).await
+    let mut set = tokio::task::JoinSet::new();
+
+    for account in list_accounts() {
+        set.spawn(async move {
+            println!("已登录账号 account_id: {}, user_id: {:?}", account.account_id, account.user_id);
+            if let Err(err) = Bot::start(EchoAgent, StartOptions { account_id: Some(account.account_id.clone()) }).await {
+                eprintln!("Bot(account_id: {}, user_id: {:?}) error: {err}", account.account_id, account.user_id);
+            }
+        });
+    }
+
+    while let Some(res) = set.join_next().await {
+        if let Err(err) = res {
+            eprintln!("Bot task error: {err}");
+        }
+    }
+
+    // Bot::start(EchoAgent, StartOptions::default()).await?;
+
+    Ok(())
 }

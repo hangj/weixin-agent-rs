@@ -33,7 +33,7 @@ pub struct MediaOutput {
     pub file_name: Option<String>,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum MediaKind {
     Image,
     Audio,
@@ -41,7 +41,7 @@ pub enum MediaKind {
     File,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum MediaOutKind {
     Image,
     Video,
